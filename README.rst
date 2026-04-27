@@ -52,6 +52,19 @@ A new field ``default_invoice_policy`` is added to **res.partner** (only
 visible on company contacts). When you create a new sale order for that
 customer, the order's ``invoice_policy`` is pre-filled from the partner.
 
+Unlike upstream OCA, this fork applies the partner default in **every
+order-creation context**, not only the backend form view:
+
+- Backend form view (via the original ``onchange``).
+- eCommerce checkout (``website_sale``) — created via Python.
+- API / external scripts / data imports.
+- Unit tests and other server-side code paths.
+
+The precedence is *explicit value in vals* > *partner default* >
+*system default applied by* ``default_get``. Explicit values are
+always respected; the partner default only kicks in when the caller
+left ``invoice_policy`` out of the vals.
+
 Upstream OCA only supports a single global default per company; this
 fork supports a per-customer default that overrides the global one.
 
