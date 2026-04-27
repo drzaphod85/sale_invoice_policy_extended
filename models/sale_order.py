@@ -54,6 +54,30 @@ class SaleOrder(models.Model):
         if self.partner_id and self.partner_id.default_invoice_policy:
             self.invoice_policy = self.partner_id.default_invoice_policy
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Apply the partner's default invoice policy at create time.
+
+        The existing ``_onchange_partner_invoice_policy`` only fires in
+        the web client. This override applies the same fallback when a
+        sale order is created from any other context — eCommerce
+        checkout (``website_sale``), API calls, scripts, imports, or
+        unit tests — so the per-partner default is honored everywhere,
+        not just in the backend form view.
+
+        Precedence (highest to lowest):
+            1. Explicit ``invoice_policy`` in ``vals``  (caller wins)
+            2. ``partner_id.default_invoice_policy`` if set
+            3. The system default applied by ``default_get`` (untouched)
+        """
+        for vals in vals_list:
+            if "invoice_policy" in vals or not vals.get("partner_id"):
+                continue
+            partner = self.env["res.partner"].browse(vals["partner_id"])
+            if partner.default_invoice_policy:
+                vals["invoice_policy"] = partner.default_invoice_policy
+        return super().create(vals_list)
+
     def write(self, vals):
         if "invoice_policy" in vals:
             _logger.debug(
